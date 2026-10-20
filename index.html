@@ -138,8 +138,23 @@ input[type=range]{width:100%;accent-color:var(--red)}
 .barcode{height:34px;background:repeating-linear-gradient(90deg,var(--ink) 0 2px,transparent 2px 4px,var(--ink) 4px 5px,transparent 5px 8px,var(--ink) 8px 11px,transparent 11px 12px);opacity:.8;border-radius:2px}
 .doc{display:inline-flex;align-items:center;gap:6px;font:600 13px var(--f-body);color:var(--blue);text-decoration:none;border-bottom:1.5px solid currentColor;align-self:flex-start;padding-bottom:1px}
 .doc:hover{color:var(--red)}
-.locate{font:500 12px var(--f-mono);background:none;border:0;padding:0;color:var(--muted);cursor:pointer;text-align:left;text-decoration:underline;text-underline-offset:3px}
-.locate:hover{color:var(--ink)}
+.gm{display:grid;gap:6px}
+.gm-k{display:flex;align-items:center;gap:6px;font:600 10px var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.gm-k svg{width:12px;height:12px;color:var(--red)}
+.gm-chips{display:flex;flex-wrap:wrap;gap:6px}
+.pin{display:inline-flex;align-items:center;gap:5px;font:600 11.5px/1 var(--f-mono);color:var(--ink);text-decoration:none;padding:6px 9px 6px 7px;border:1px solid var(--line);border-radius:999px;background:color-mix(in srgb,var(--paper) 55%,var(--card));white-space:nowrap}
+.pin svg{width:12px;height:12px;flex:none;color:var(--red)}
+.pin.route svg{color:var(--blue)}.pin.home svg{color:var(--saffron)}
+.pin:hover{border-color:var(--blue);color:var(--blue)}
+.pin::after{content:"↗";color:var(--muted);font-weight:500}
+.hop a{color:var(--ink);text-underline-offset:3px;white-space:nowrap}.hop a:hover{color:var(--blue)}
+.m-link{cursor:pointer}
+.m-link .m-hit{fill:transparent}
+.m-link .m-arrow{fill:var(--blue);font-weight:600}
+.m-link:hover .m-city,.m-link:focus-visible .m-city{fill:var(--blue);stroke:var(--blue)}
+.m-link:hover .m-lbl,.m-link:focus-visible .m-lbl{fill:var(--blue)}
+.m-link:focus-visible{outline:none}
+.print-stops a{color:inherit;text-decoration:none}
 .note{grid-column:1/-1;font-size:13px;background:color-mix(in srgb,var(--saffron) 14%,transparent);border-left:3px solid var(--saffron);padding:8px 12px;border-radius:0 4px 4px 0}
 
 .key{--mode:var(--red)}
@@ -191,7 +206,7 @@ footer.wrap{padding-block:24px 48px;display:grid;gap:12px;color:var(--muted);fon
 @media print{
   @page{size:A4;margin:0}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .actions,.stepper,.pips,.upnext,.locate,#stepN,#nowMode,#nowPlace,#nowTime,#nowVia,#nowStay{display:none!important}
+  .actions,.stepper,.pips,.upnext,#nowMaps,#stepN,#nowMode,#nowPlace,#nowTime,#nowVia,#nowStay{display:none!important}
   .atlas{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
   .now{position:static}
   .print-stops{display:grid;gap:6px;margin:0;padding:0;list-style:none;font-size:12px}
@@ -254,11 +269,11 @@ footer.wrap{padding-block:24px 48px;display:grid;gap:12px;color:var(--muted);fon
 </header>
 
 <section class="wrap" aria-labelledby="atlas-h">
-  <div class="sec-h"><h2 id="atlas-h">Route atlas</h2><p>Seen from above the North Pole. Click Next to travel stop by stop.</p></div>
+  <div class="sec-h"><h2 id="atlas-h">Route atlas</h2><p>Seen from above the North Pole. Click Next to travel stop by stop, or tap a city to open it in Google Maps.</p></div>
   <div class="atlas">
     <div class="mapbox">
       <svg id="map" viewBox="0 0 800 800" role="img" aria-label="North-polar map of the trip: Ahmedabad to San Francisco via Delhi over the Arctic, then Atlanta, Newark, and back to Bengaluru through Munich"></svg>
-      <div class="legend"><span><i style="border-color:var(--blue)"></i>Flight</span><span><i style="border-color:var(--red)"></i>Drive</span></div>
+      <div class="legend"><span><i style="border-color:var(--blue)"></i>Flight</span><span><i style="border-color:var(--red)"></i>Drive</span><span>Tap a city ↗ for Google Maps</span></div>
     </div>
     <aside class="now" aria-live="polite">
       <div class="ticketish">
@@ -268,6 +283,7 @@ footer.wrap{padding-block:24px 48px;display:grid;gap:12px;color:var(--muted);fon
         <div class="doing" id="nowTime">--</div>
         <div class="where" id="nowVia"></div>
         <div class="staynote" id="nowStay"></div>
+        <div class="gm" id="nowMaps"></div>
         <ol class="pips" id="pips" aria-hidden="true"></ol>
         <div class="actions stepper"><button class="btn" id="back" type="button">← Back</button><button class="btn solid" id="next" type="button">Next stop →</button></div>
         <div class="upnext" id="upNext"></div>
@@ -298,17 +314,31 @@ const DOTS=[-78.2,-8,-76.6,-8,-75,-8,-73.4,-8,-71.7,-8,-70.1,-8,-68.5,-8,-66.9,-
 const FOLDER_URL='https://drive.google.com/drive/folders/14qrGgZexwBNgy8i2IJtANj-np2SYwhK6';
 const LINKS={"Air India - Ahmedabad to San Francisco via Delhi (31 Oct)": "https://drive.google.com/file/d/1xeG-j2LkitwGDentzBbS7OXQm67nvcIS/view", "United - Greenville to Newark (18 Nov)": "https://drive.google.com/file/d/1tRcKCza1gP8e4bGMPPF7CM2dxFx6kLpW/view", "Passport with US Visa": "https://drive.google.com/file/d/1LxgogIucP4jB_qzteNi8SJJLL1KB5hx2/view", "Digit Travel Insurance (31 Oct - 22 Nov)": "https://drive.google.com/file/d/1FOusoe7pUQ0qWfal360c9AkU2ZEKM21I/view", "Residence Inn SFO Airport Millbrae (31 Oct - 13 Nov)": "https://drive.google.com/file/d/1MocL9P258pEti_Wn4Rx6XpHXnfBglQSz/view", "Uncle Vipulkumar Shah - Piedmont SC (14-18 Nov)": "https://drive.google.com/file/d/1JXVCwwbfEIOJSiw6JQn9fu8UK7td5RVk/view", "DS-160 Confirmation": "https://drive.google.com/file/d/1hyVr4IhDbo8lGzLRm_ZuXHezJ7ZSG-Gn/view", "Invitation - SF Office Visit (Email)": "https://drive.google.com/file/d/1Ak5D-_V9uV909lK157B8l8JPnfn5H8Va/view", "US Visa - Approval Status": "https://drive.google.com/file/d/1gKahUDt2PWrQgECE3ZGGJSAAH0J53gO3/view", "Visa Appointment Confirmation": "https://drive.google.com/file/d/1th8lwkYYdUOsP-ii0tCMwJUgrEOIuW6V/view", "Visa Fee Receipt": "https://drive.google.com/file/d/1_QSbkywj1LFWll3Aaw2XVwuLZSFoS5_A/view", "Frontier - San Francisco to Atlanta (13 Nov)": "https://drive.google.com/file/d/1aVM-GtYzFabiIyHB_K_r13AwDuLokFGV/view", "Lufthansa - Newark to Bengaluru via Munich (23 Nov)": "https://drive.google.com/file/d/1m3r1yCSIyMLZ0lWDFqJUcoE6bjwvRkcF/view", "Friend Aashka Parikh - Jersey City NJ (18-23 Nov)": "https://drive.google.com/file/d/1GURrn09zdRBZTh15kb6V4OIPRBFKJpxj/view"};
 const drive=d=>LINKS[d]||FOLDER_URL;
+const gm=q=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q);
+const gdir=(o,d,m='driving')=>`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(o)}&destination=${encodeURIComponent(d)}&travelmode=${m}`;
+const ADDR={
+ SFO:'Residence Inn by Marriott San Francisco Airport/Millbrae Station, 161 N Rollins Rd, Millbrae, CA 94030',
+ PDM:'328 Glass Rd, Piedmont, SC 29673',
+ EWR:'401 Washington Blvd, Jersey City, NJ 07310'
+};
+const ICON={
+ pin:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>',
+ home:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3 2 11.5h3V21h5.5v-6h3v6H19v-9.5h3z"/></svg>',
+ route:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2" fill="currentColor"/><circle cx="18" cy="6" r="2.2" fill="currentColor"/><path d="M8 18h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7"/></svg>'
+};
+const pinA=(href,label,kind='pin',title)=>`<a class="pin${kind==='pin'?'':' '+kind}" href="${href}" target="_blank" rel="noopener"${title?` title="${title}"`:''}>${ICON[kind]}${label}</a>`;
+const gmBlock=chips=>`<div class="gm"><div class="gm-k">${ICON.pin}Google Maps</div><div class="gm-chips">${chips.join('')}</div></div>`;
 
 const P={
- AMD:{n:'Ahmedabad',c:[72.63,23.07],lx:-10,ly:14,a:'end'},
- DEL:{n:'New Delhi',c:[77.10,28.56],lx:10,ly:-8,a:'start'},
- SFO:{n:'San Francisco',c:[-122.38,37.62],lx:-10,ly:-8,a:'end'},
- ATL:{n:'Atlanta',c:[-84.43,33.64],lx:-12,ly:-6,a:'end'},
- PDM:{n:'Piedmont, SC',c:[-82.46,34.70],hide:true},
- GSP:{n:'Greenville',c:[-82.22,34.90],hide:true},
- EWR:{n:'Newark',c:[-74.17,40.69],lx:12,ly:18,a:'start'},
- MUC:{n:'Munich',c:[11.79,48.35],lx:0,ly:24,a:'middle'},
- BLR:{n:'Bengaluru',c:[77.71,13.20],lx:0,ly:24,a:'middle'}
+ AMD:{n:'Ahmedabad',g:'Sardar Vallabhbhai Patel International Airport Terminal 2, Ahmedabad',c:[72.63,23.07],lx:-10,ly:14,a:'end'},
+ DEL:{n:'New Delhi',g:'Indira Gandhi International Airport Terminal 3, New Delhi',c:[77.10,28.56],lx:10,ly:-8,a:'start'},
+ SFO:{n:'San Francisco',g:'San Francisco International Airport',c:[-122.38,37.62],lx:-10,ly:-8,a:'end'},
+ ATL:{n:'Atlanta',g:'Hartsfield-Jackson Atlanta International Airport',c:[-84.43,33.64],lx:-12,ly:-6,a:'end'},
+ PDM:{n:'Piedmont, SC',g:'328 Glass Rd, Piedmont, SC 29673',c:[-82.46,34.70],hide:true},
+ GSP:{n:'Greenville',g:'Greenville-Spartanburg International Airport',c:[-82.22,34.90],hide:true},
+ EWR:{n:'Newark',g:'Newark Liberty International Airport',c:[-74.17,40.69],lx:12,ly:18,a:'start'},
+ MUC:{n:'Munich',g:'Munich Airport Terminal 2',c:[11.79,48.35],lx:0,ly:24,a:'middle'},
+ BLR:{n:'Bengaluru',g:'Kempegowda International Airport Terminal 2, Bengaluru',c:[77.71,13.20],lx:0,ly:24,a:'middle'}
 };
 const IST='Asia/Kolkata',PT='America/Los_Angeles',ET='America/New_York',CET='Europe/Berlin';
 // m: flight|drive|stay|wait ; times in UTC ; pending = not booked yet (times are placeholders for the map only)
@@ -336,7 +366,7 @@ const S=[
   name:"Aashka's place",where:'Jersey City, New Jersey · Aashka Parikh',nights:5,meta:[['Arrive','Wed 18 Nov'],['Leave','Mon 23 Nov']],
   doc:'Friend Aashka Parikh - Jersey City NJ (18-23 Nov)'},
  {m:'flight',from:'EWR',to:'MUC',s:'2026-11-24T01:50Z',e:'2026-11-24T09:20Z',tz:ET,date:['Mon','23','Nov'],
-  carrier:'Lufthansa',num:'LH 413 · LH 764',dep:'20:50',arr:'01:00 +2',fromP:'Newark T-B',toP:'Bengaluru T2',to2:'BLR',via:'via MUC · 1h 50m',durEnd:'2026-11-24T19:30Z',
+  carrier:'Lufthansa',num:'LH 413 · LH 764',dep:'20:50',arr:'01:00 +2',fromP:'Newark T-B',fromG:'Newark Liberty International Airport Terminal B',toP:'Bengaluru T2',to2:'BLR',via:'via MUC · 1h 50m',durEnd:'2026-11-24T19:30Z',
   meta:[['Checked bag','1 × 23 kg'],['Cabin','1 bag (8 kg) + 1 handbag'],['Aircraft','Airbus A350-900'],['Lands','Wed 25 Nov']],doc:'Lufthansa - Newark to Bengaluru via Munich (23 Nov)',kind:'E-ticket'},
  {m:'wait',at:'MUC',s:'2026-11-24T09:20Z',e:'2026-11-24T11:10Z',tz:CET,card:false},
  {m:'flight',from:'MUC',to:'BLR',s:'2026-11-24T11:10Z',e:'2026-11-24T19:30Z',tz:CET,card:false,doc:'Lufthansa - Newark to Bengaluru via Munich (23 Nov)'}
@@ -397,7 +427,7 @@ const metaHTML=m=>`<dl class="meta">${m.map(([k,v])=>`<div><dt>${k}</dt><dd>${v}
 const J=document.getElementById('journey');
 S.forEach((x,i)=>{
   if(x.card===false)return;
-  if(x.m==='drive'){J.insertAdjacentHTML('beforeend',`<div class="row" data-i="${i}"><div></div><div class="hop">${x.hop}</div></div>`);return;}
+  if(x.m==='drive'){const o=x.from==='ATL'?P.ATL.g:ADDR.PDM,d=x.to==='PDM'?ADDR.PDM:P[x.to].g;J.insertAdjacentHTML('beforeend',`<div class="row" data-i="${i}"><div></div><div class="hop"><span>${x.hop} · <a href="${gdir(o,d)}" target="_blank" rel="noopener">Route on Google Maps ↗</a></span></div></div>`);return;}
   const date=`<div class="date">${x.date[0]}<b>${x.date[1]}</b>${x.date[2]}</div>`;
   let card;
   if(x.m==='stay'){
@@ -406,7 +436,7 @@ S.forEach((x,i)=>{
       <div class="nights">${x.nights??'—'}<small>${x.nights==null?'until return':x.nights>1?'nights':'night'}</small></div>
       ${metaHTML(x.meta)}${x.note?`<div class="note">${x.note}</div>`:''}
     </div><div class="pass-stub"><div class="stub-k">Room key</div><div class="chip" aria-hidden="true"></div>
-      <a class="doc" data-doc="${x.doc}" href="#" target="_blank" rel="noopener">Open booking ↗</a><button class="locate" type="button" data-loc="${i}">Show on map</button></div></article>`;
+      <a class="doc" data-doc="${x.doc}" href="#" target="_blank" rel="noopener">Open booking ↗</a>${gmBlock([pinA(gm(ADDR[x.at]),'Address','home',ADDR[x.at]),pinA(gdir(P[x.at==='PDM'?'ATL':x.at].g,ADDR[x.at]),`From ${x.at==='PDM'?'ATL':x.at}`,'route','Directions from the airport')])}</div></article>`;
   }else{
     const to=x.toCode||x.to2||x.to,mode=x.pending?'var(--muted)':x.m==='train'?'var(--saffron)':'var(--blue)';
     card=`<article class="pass${x.pending?' pending':''}" style="--mode:${mode}"><div class="pass-main">
@@ -416,7 +446,7 @@ S.forEach((x,i)=>{
         <div class="end"><div class="code">${to}</div><div class="place">${x.toP}</div><div class="hm">${x.arr}</div></div></div>
       ${metaHTML(x.pending?x.meta:[['Duration',dur(x)],...x.meta])}
     </div><div class="pass-stub"><div class="stub-k">${x.pending?'Ticket':x.kind}</div>${x.pending?'<div class="todo">Not booked yet</div>':'<div class="barcode" aria-hidden="true"></div>'}
-      ${x.pending?'':`<a class="doc" data-doc="${x.doc}" href="#" target="_blank" rel="noopener">Open ticket ↗</a>`}<button class="locate" type="button" data-loc="${i}">Show on map</button></div></article>`;
+      ${x.pending?'':`<a class="doc" data-doc="${x.doc}" href="#" target="_blank" rel="noopener">Open ticket ↗</a>`}${gmBlock([pinA(gm(x.fromG||P[x.from].g),x.from,'pin',x.fromG||P[x.from].g),pinA(gm(P[x.to2||x.to].g),x.to2||x.to,'pin',P[x.to2||x.to].g)])}</div></article>`;
   }
   J.insertAdjacentHTML('beforeend',`<div class="row" data-i="${i}">${date}${card}</div>`);
 });
@@ -442,8 +472,12 @@ const gl=svg.append('g'),gdone=svg.append('g');
 legs.forEach(x=>gl.append('path').attr('class','m-leg'+(x.pending?' pending':'')).attr('stroke',colorL(x)).attr('d',path({type:'LineString',coordinates:[P[x.from].c,P[x.to].c]})));
 const doneP=legs.map(x=>gdone.append('path').attr('class','m-done'+(x.pending?' pending':'')).attr('stroke',colorL(x)));
 const gc=svg.append('g');
-Object.entries(P).forEach(([k,p])=>{if(p.hide)return;const xy=proj(p.c);gc.append('circle').attr('class','m-city').attr('cx',xy[0]).attr('cy',xy[1]).attr('r',4.5);
-  if(p.lx!==undefined)gc.append('text').attr('class','m-lbl').attr('x',xy[0]+p.lx).attr('y',xy[1]+p.ly).attr('text-anchor',p.a).text(p.label||p.n);});
+Object.entries(P).forEach(([k,p])=>{if(p.hide)return;const xy=proj(p.c);
+  const a=gc.append('a').attr('class','m-link').attr('href',gm(p.g)).attr('target','_blank').attr('rel','noopener').attr('aria-label',`${p.n}: open ${p.g} in Google Maps`);
+  a.append('title').text(`${p.n} · open in Google Maps`);
+  a.append('circle').attr('class','m-hit').attr('cx',xy[0]).attr('cy',xy[1]).attr('r',14);
+  a.append('circle').attr('class','m-city').attr('cx',xy[0]).attr('cy',xy[1]).attr('r',4.5);
+  if(p.lx!==undefined){const t=a.append('text').attr('class','m-lbl').attr('x',xy[0]+p.lx).attr('y',xy[1]+p.ly).attr('text-anchor',p.a);t.append('tspan').text(p.label||p.n);t.append('tspan').attr('class','m-arrow').attr('dx',3).text('↗');}});
 const me=svg.append('g');me.append('circle').attr('class','m-ring').attr('r',9);me.append('circle').attr('class','m-me').attr('r',6.5);
 
 /* ---------- stops (click-through) ---------- */
@@ -492,6 +526,9 @@ function showStep(i){
   document.getElementById('nowTime').textContent=`${s.lead} ${when}`;
   document.getElementById('nowVia').textContent=s.via;
   document.getElementById('nowStay').textContent=s.stay;
+  const home=ADDR[s.at==='ATL'?'PDM':s.at],chips=[pinA(gm(P[s.at].g),`${s.at} airport`,'pin',P[s.at].g)];
+  if(home){chips.push(pinA(gm(home),s.at==='SFO'?'Hotel':s.at==='ATL'?"Uncle's home":"Aashka's place",'home',home));chips.push(pinA(gdir(P[s.at].g,home),'Directions','route','Directions from the airport'));}
+  document.getElementById('nowMaps').innerHTML=`<div class="gm-k">${ICON.pin}Google Maps</div><div class="gm-chips">${chips.join('')}</div>`;
   [...pips.children].forEach((li,k)=>li.className=k<i?'done':k===i?'on':'');
   document.getElementById('back').disabled=i===0;
   const nx=document.getElementById('next');nx.textContent=i===STEPS.length-1?'Start over ↺':'Next stop →';
@@ -508,9 +545,6 @@ function go(i){
 document.getElementById('next').addEventListener('click',()=>go(step===STEPS.length-1?0:step+1));
 document.getElementById('back').addEventListener('click',()=>{if(step>0)go(step-1)});
 document.getElementById('startTop').addEventListener('click',()=>{document.getElementById('map').scrollIntoView({behavior:reduce?'auto':'smooth',block:'center'});go(step===STEPS.length-1?0:step+1)});
-J.addEventListener('click',e=>{const b=e.target.closest('[data-loc]');if(!b)return;const x=S[+b.dataset.loc];
-  let idx;if(x.m==='stay'){idx=0;STEPS.forEach((s,k)=>{if(s.t<=x.t0+1)idx=k})}else{idx=STEPS.findIndex(s=>s.t>=x.t1-1);if(idx<0)idx=STEPS.length-1}
-  curT=STEPS[idx].t;go(idx);document.getElementById('map').scrollIntoView({behavior:reduce?'auto':'smooth',block:'center'})});
 /* live departure board */
 const flaps=document.getElementById('flaps'),bLbl=document.getElementById('boardLbl'),bSub=document.getElementById('boardSub');
 const UNITS=[['days',2],['hrs',2],['min',2],['sec',2]];
@@ -528,7 +562,7 @@ function tick(){
 }
 tick();setInterval(tick,1000);
 
-document.getElementById('printStops').innerHTML=STEPS.map(s=>`<li><b>${s.place}</b><span>${s.lead} ${whenOf(s)}</span><span>${s.via}</span></li>`).join('');
+document.getElementById('printStops').innerHTML=STEPS.map(s=>`<li><b><a href="${gm(P[s.at].g)}">${s.place} ↗</a></b><span>${s.lead} ${whenOf(s)}</span><span>${s.via}</span></li>`).join('');
 const printAll=()=>{if(raf)cancelAnimationFrame(raf);render(T1)};
 window.addEventListener('beforeprint',printAll);window.addEventListener('afterprint',()=>{render(STEPS[step].t)});
 window.tripPrintView=printAll;
